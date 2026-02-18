@@ -2,9 +2,10 @@
 
 /**
  * Participant List
- * Sidebar showing all explorers in the event
+ * Sidebar showing all explorers in the event with expandable search
  */
 
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMapStore, getLevelColor, getLevelName, getParticipantLevel } from '@/lib/store'
 
@@ -18,6 +19,40 @@ export function ParticipantList() {
     currentUserId,
   } = useMapStore()
 
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Focus input when search opens
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [isSearchOpen])
+
+  // Handle search toggle
+  const handleSearchToggle = () => {
+    if (isSearchOpen) {
+      // Closing search — clear query
+      setSearchQuery('')
+      setIsSearchOpen(false)
+    } else {
+      // Opening search — also open the list
+      setIsSearchOpen(true)
+      if (!showParticipantList) {
+        toggleParticipantList()
+      }
+    }
+  }
+
+  // Handle search key events
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setSearchQuery('')
+      setIsSearchOpen(false)
+    }
+  }
+
   // Sort: current user first, then by registration time
   const sortedParticipants = [...participants].sort((a, b) => {
     if (a.participant_id === currentUserId) return -1
@@ -28,26 +63,80 @@ export function ParticipantList() {
     return bTime - aTime
   })
 
+  // Filter by search query
+  const filteredParticipants = searchQuery.trim()
+    ? sortedParticipants.filter(p =>
+      p.username.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    : sortedParticipants
+
   return (
     <>
-      {/* Toggle button */}
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={toggleParticipantList}
-        className="glass-panel px-4 py-2 flex items-center gap-2 text-space-cream hover:bg-space-void-lighter/70 transition-colors"
-      >
-        <span className="text-lg">👥</span>
-        <span className="font-display text-sm font-medium">
-          {participants.length} Explorer{participants.length !== 1 ? 's' : ''}
-        </span>
-        <motion.span
-          animate={{ rotate: showParticipantList ? 180 : 0 }}
-          className="text-space-lavender/60"
+      {/* Button bar: toggle + search */}
+      <div className="flex items-center gap-2">
+        {/* Search icon / input */}
+        <motion.div
+          className="flex items-center glass-panel overflow-hidden"
+          animate={{ width: isSearchOpen ? 200 : 40 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
         >
-          ▼
-        </motion.span>
-      </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={handleSearchToggle}
+            className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-space-lavender/70 hover:text-space-cream transition-colors"
+            title={isSearchOpen ? 'Close search' : 'Search explorers'}
+          >
+            {isSearchOpen ? (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 4L4 12M4 4L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="2" />
+                <path d="M11 11L14 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            )}
+          </motion.button>
+
+          <AnimatePresence>
+            {isSearchOpen && (
+              <motion.input
+                ref={searchInputRef}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2, delay: 0.1 }}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Search explorers..."
+                className="flex-1 min-w-0 bg-transparent text-sm text-space-cream placeholder:text-space-lavender/40 border-none outline-none pr-3 py-2"
+              />
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Toggle button */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={toggleParticipantList}
+          className="glass-panel px-4 py-2 flex items-center gap-2 text-space-cream hover:bg-space-void-lighter/70 transition-colors"
+        >
+          <span className="text-lg">👥</span>
+          <span className="font-display text-sm font-medium">
+            {participants.length} Explorer{participants.length !== 1 ? 's' : ''}
+          </span>
+          <motion.span
+            animate={{ rotate: showParticipantList ? 180 : 0 }}
+            className="text-space-lavender/60"
+          >
+            ▼
+          </motion.span>
+        </motion.button>
+      </div>
 
       {/* List panel */}
       <AnimatePresence>
@@ -59,15 +148,27 @@ export function ParticipantList() {
             transition={{ duration: 0.3 }}
             className="glass-panel mt-2 overflow-hidden"
           >
+            {/* Search results count when filtering */}
+            {searchQuery.trim() && (
+              <div className="px-3 pt-2 pb-1 text-xs text-space-lavender/50 border-b border-space-lavender/10">
+                {filteredParticipants.length} result{filteredParticipants.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;
+              </div>
+            )}
+
             <div className="p-2 max-h-80 overflow-y-auto scrollbar-hide">
-              {sortedParticipants.length === 0 ? (
+              {filteredParticipants.length === 0 ? (
                 <div className="text-center py-8 text-space-lavender/50">
-                  <p className="text-2xl mb-2">🌍</p>
-                  <p className="text-sm">No explorers on the map yet</p>
+                  <p className="text-2xl mb-2">{searchQuery.trim() ? '🔍' : '🌍'}</p>
+                  <p className="text-sm">
+                    {searchQuery.trim()
+                      ? 'No explorers found'
+                      : 'No explorers on the map yet'
+                    }
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-1">
-                  {sortedParticipants.map((participant, index) => {
+                  {filteredParticipants.map((participant, index) => {
                     const isCurrentUser = participant.participant_id === currentUserId
                     const isSelected = selectedParticipant?.participant_id === participant.participant_id
                     const level = getParticipantLevel(participant)
