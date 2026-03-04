@@ -130,18 +130,14 @@ curl -s -X PATCH "$API_BASE/participants/$PARTICIPANT_ID" \
     "completion_percentage": 40
   }' > /dev/null
 
-# 4. Update Location
-echo "Updating Location..."
-curl -s -X PATCH "$API_BASE/participants/$PARTICIPANT_ID/location?x=$NEW_X&y=$NEW_Y" > /dev/null
-
-# 5. Verify New Status
+# 4. Verify New Status
 echo -e "\n--- Verification (After Update) ---"
 verify_output=$(curl -s "$API_BASE/participants/$PARTICIPANT_ID")
 echo "$verify_output" | python3 -c "
 import sys, json
 try:
     data=json.load(sys.stdin)
-    print(f\"   New Loc: ({data.get('x')}, {data.get('y')}) | Lev2: {data.get('level_2_complete')}\")
+    print(f\" Lev2: {data.get('level_2_complete')}\")
 except Exception:
     print('   (Could not verify update)')
 "
