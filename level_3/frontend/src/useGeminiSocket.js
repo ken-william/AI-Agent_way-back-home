@@ -5,6 +5,7 @@ import { AudioRecorder } from './audioRecorder';
 export function useGeminiSocket(url) {
     const [status, setStatus] = useState('DISCONNECTED');
     const [lastMessage, setLastMessage] = useState(null);
+    const [isMock, setIsMock] = useState(false);
     const ws = useRef(null);
     const streamRef = useRef(null);
     const intervalRef = useRef(null);
@@ -81,6 +82,6 @@ export function useGeminiSocket(url) {
         stopStream();
     }, [stopStream]);
 
-    return { status, lastMessage, connect, disconnect, startStream, stopStream };
+    return { status, lastMessage, isMock, connect, disconnect, startStream, stopStream };
 }
 

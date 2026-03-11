@@ -5,6 +5,7 @@ import { AudioRecorder } from './audioRecorder';
 export function useGeminiSocket(url) {
     const [status, setStatus] = useState('DISCONNECTED');
     const [lastMessage, setLastMessage] = useState(null);
+    const [isMock, setIsMock] = useState(false);
     const ws = useRef(null);
     const streamRef = useRef(null);
     const intervalRef = useRef(null);
@@ -34,7 +35,14 @@ export function useGeminiSocket(url) {
 
         ws.current.onmessage = async (event) => {
             try {
+                // console.log("Raw WS Frame:", event.data.slice(0, 200)); 
                 const msg = JSON.parse(event.data);
+
+                // Detect mock server identification flag
+                if (msg.mock === true) {
+                    setIsMock(true);
+                    return;
+                }
 
                 // Helper to extract parts from various possible event structures
                 let parts = [];
@@ -45,17 +53,21 @@ export function useGeminiSocket(url) {
                 }
 
                 if (parts.length > 0) {
+                    // console.log(`[useGeminiSocket] Processing ${parts.length} parts`);
                     parts.forEach(part => {
-                        // Handle Tool Calls (The "Sync" logic)
+                        // Handle Tool Calls
                         if (part.functionCall) {
+                            console.log('Tool Call Detected:', part.functionCall);
                             if (part.functionCall.name === 'report_digit') {
                                 const count = parseInt(part.functionCall.args.count, 10);
                                 setLastMessage({ type: 'DIGIT_DETECTED', value: count });
                             }
                         }
 
-                        // Handle Audio (The AI's voice)
+                        // Handle Audio (inlineData)
                         if (part.inlineData && part.inlineData.data) {
+                            console.log(`[useGeminiSocket] Found inlineData: ${part.inlineData.data.length} chars`);
+                            // Resume context if needed (autoplay policy)
                             audioStreamer.current.resume();
                             audioStreamer.current.addPCM16(part.inlineData.data);
                         }
@@ -116,6 +128,7 @@ export function useGeminiSocket(url) {
                     }));
                 }
             }, 500); // 2 FPS
+
         } catch (err) {
             console.error('Error accessing camera:', err);
         }
@@ -153,6 +166,6 @@ export function useGeminiSocket(url) {
         stopStream();
     }, [stopStream]);
 
-    return { status, lastMessage, connect, disconnect, startStream, stopStream };
+    return { status, lastMessage, isMock, connect, disconnect, startStream, stopStream };
 }
 
