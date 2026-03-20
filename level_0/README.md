@@ -1,6 +1,6 @@
 # Level 0: Identify Yourself
 
-![Level 0: Identify Yourself](img/01-01-header.gif)
+![Level 0: Identify Yourself](img/01-02-architecture.png)
 
 **Generate your unique space explorer avatar using multi-turn image generation with Gemini.**
 
